@@ -1,0 +1,67 @@
+---
+title: "hw6"
+output: html_document
+date: '2023-11-28'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## load necessary packages 
+
+```{r}
+library(tidyverse)
+set.seed(1)
+```
+
+## problem 1 (0 points)
+
+```{r}
+## no work shown for this problem 
+```
+
+## problem 2
+
+run code chunk from the course website: 
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2022-01-01",
+    date_max = "2022-12-31") |>
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) |>
+  select(name, id, everything())
+```
+
+Use 5000 bootstrap samples and, for each bootstrap sample, produce estimates of these two quantities. Plot the distribution of your estimates, and describe these in words. Using the 5000 bootstrap estimates, identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for r̂ 2
+ and log(β̂ 0∗β̂ 1)
+
+Drawing 5,000 bootstrap samples:
+
+```{r}
+boot_straps = 
+  weather_df |> 
+  modelr::bootstrap(n = 5000)
+
+boot_straps |> pull(strap) |> nth(1)
+
+```
+
+```{r}
+boot_straps = 
+  weather_df |> 
+  modelr::bootstrap(n = 5000)|> 
+  mutate(
+    models = map(.x = strap_sample, ~lm(tmax ~ tmin, data = .x)), ## something in this line needs to be fixed
+    results = map(models, broom::tidy)) |> 
+  select(-strap, -models) |> 
+  unnest(results) |> 
+  group_by(term) |> 
+  summarize(boot_se = sd(estimate))
+```
+
