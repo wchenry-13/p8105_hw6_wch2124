@@ -41,8 +41,6 @@ weather_df =
 Use 5000 bootstrap samples and, for each bootstrap sample, produce estimates of these two quantities. Plot the distribution of your estimates, and describe these in words. Using the 5000 bootstrap estimates, identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for r̂ 2
  and log(β̂ 0∗β̂ 1)
 
-Drawing 5,000 bootstrap samples:
-
 ```{r}
 boot_straps = 
   weather_df |> 
@@ -52,16 +50,51 @@ boot_straps |> pull(strap) |> nth(1)
 
 ```
 
+Drawing 5000 samples and establishing the 95% CI:
 ```{r}
 boot_straps = 
   weather_df |> 
   modelr::bootstrap(n = 5000)|> 
   mutate(
-    models = map(.x = strap_sample, ~lm(tmax ~ tmin, data = .x)), ## something in this line needs to be fixed
+    models = map(.x = strap, ~lm(tmax ~ tmin + prcp, data = .x)), 
     results = map(models, broom::tidy)) |> 
   select(-strap, -models) |> 
   unnest(results) |> 
   group_by(term) |> 
-  summarize(boot_se = sd(estimate))
+  select(.id, term, estimate) |>
+  pivot_wider(
+    names_from = "term",
+    values_from = "estimate"
+  ) |> 
+  janitor::clean_names() |> 
+  mutate(
+    log_B = log(tmin*prcp) 
+  ) |> 
+  summarize(
+    LL = quantile(log_B, c(.025), na.rm = TRUE),
+    UL = quantile(log_B, c(.975), na.rm = TRUE) 
+  )
 ```
 
+Finding R^2: 
+```{r}
+boot_straps = 
+  weather_df |> 
+  modelr::bootstrap(n = 5000) |> 
+  mutate(
+    models = map(strap, ~lm(tmax ~ tmin, data = .x)),
+    results = map(models, broom::glance)
+  ) |> 
+  select(-strap, -models) |> 
+  unnest(results) |> 
+  janitor::clean_names() |> 
+  summarize(
+    LL = quantile(r_squared, c(.025)),
+    UL = quantile(r_squared, c(.975))
+  )
+```
+
+Plots: 
+```{r}
+
+```

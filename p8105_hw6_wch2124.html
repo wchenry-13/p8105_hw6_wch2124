@@ -402,9 +402,55 @@ estimates of these two quantities. Plot the distribution of your
 estimates, and describe these in words. Using the 5000 bootstrap
 estimates, identify the 2.5% and 97.5% quantiles to provide a 95%
 confidence interval for r̂ 2 and log(β̂ 0∗β̂ 1)</p>
-<pre class="r"><code>boot_sample = function(df) {
-  sample_frac(df, replace = TRUE)
-}</code></pre>
+<pre class="r"><code>boot_straps = 
+  weather_df |&gt; 
+  modelr::bootstrap(n = 5000)
+
+boot_straps |&gt; pull(strap) |&gt; nth(1)</code></pre>
+<pre><code>## &lt;resample [365 x 6]&gt; 324, 167, 129, 299, 270, 187, 307, 85, 277, 362, ...</code></pre>
+<p>Drawing 5000 samples and establishing the 95% CI:</p>
+<pre class="r"><code>boot_straps = 
+  weather_df |&gt; 
+  modelr::bootstrap(n = 5000)|&gt; 
+  mutate(
+    models = map(.x = strap, ~lm(tmax ~ tmin + prcp, data = .x)), 
+    results = map(models, broom::tidy)) |&gt; 
+  select(-strap, -models) |&gt; 
+  unnest(results) |&gt; 
+  group_by(term) |&gt; 
+  select(.id, term, estimate) |&gt;
+  pivot_wider(
+    names_from = &quot;term&quot;,
+    values_from = &quot;estimate&quot;
+  ) |&gt; 
+  janitor::clean_names() |&gt; 
+  mutate(
+    log_B = log(tmin*prcp) 
+  ) |&gt; 
+  summarize(
+    LL = quantile(log_B, c(.025), na.rm = TRUE),
+    UL = quantile(log_B, c(.975), na.rm = TRUE) 
+  )</code></pre>
+<pre><code>## Warning: There was 1 warning in `mutate()`.
+## ℹ In argument: `log_B = log(tmin * prcp)`.
+## Caused by warning in `log()`:
+## ! NaNs produced</code></pre>
+<p>Finding R^2:</p>
+<pre class="r"><code>boot_straps = 
+  weather_df |&gt; 
+  modelr::bootstrap(n = 5000) |&gt; 
+  mutate(
+    models = map(strap, ~lm(tmax ~ tmin, data = .x)),
+    results = map(models, broom::glance)
+  ) |&gt; 
+  select(-strap, -models) |&gt; 
+  unnest(results) |&gt; 
+  janitor::clean_names() |&gt; 
+  summarize(
+    LL = quantile(r_squared, c(.025)),
+    UL = quantile(r_squared, c(.975))
+  )</code></pre>
+<p>Plots:</p>
 </div>
 
 
