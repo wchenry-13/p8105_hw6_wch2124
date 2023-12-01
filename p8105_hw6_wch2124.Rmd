@@ -8,7 +8,7 @@ date: '2023-11-28'
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## load necessary packages 
+Load necessary packages 
 
 ```{r}
 library(tidyverse)
@@ -74,7 +74,7 @@ boot_straps =
   summarize(
     LL = quantile(log_B, c(.025), na.rm = TRUE),
     UL = quantile(log_B, c(.975), na.rm = TRUE) 
-  )
+   )
 ```
 
 Finding R^2: 
@@ -96,9 +96,29 @@ boot_straps =
 ```
 
 Plots: 
+
 ```{r}
-## graph isnt showing up??
-boot_straps = 
+## r squared plot 
+
+weather_df |> 
+  modelr::bootstrap(n = 5000) |> 
+  mutate(
+    models = map(strap, ~lm(tmax ~ tmin + prcp, data = .x)),
+    results = map(models, broom::glance)
+  ) |> 
+  select(-strap, -models) |> 
+  unnest(results) |> 
+  ggplot(aes(x = r.squared)) + geom_density() +
+  labs(
+    title = "insert title here"
+  )
+
+```
+
+
+```{r}
+## log plot 
+
   weather_df |> 
   modelr::bootstrap(n = 5000)|> 
   mutate(
@@ -116,15 +136,11 @@ boot_straps =
   filter(tmin*prcp > 0) |> 
   mutate(
     log_B = log(tmin*prcp) 
-  ) |> 
-  summarize(
-    LL = quantile(log_B, c(.025), na.rm = TRUE),
-    UL = quantile(log_B, c(.975), na.rm = TRUE) 
-  ) |> 
-  ggplot(aes(x = log_B)) + geom_density() +
+  ) |> ggplot(aes(x = log_B)) + geom_density() +
   labs(
-    title = "Distribution of [simulated] log(b0*b1) values"
+    title = "insert title here"
   )
+
 ```
 
 Problem 3
@@ -150,6 +166,29 @@ fit_birthweight |>  broom::tidy()
 ```
 
 show a plot of model residuals against fitted values – use add_predictions and add_residuals in making this plot: 
+
+```{r}
+birthweight_data |>  
+  modelr::add_residuals(fit_birthweight) |> 
+  modelr::add_predictions(fit_birthweight) |>  
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point() +
+  labs(
+    title = "Residuals vs Fitted Values",
+    x = "Fitted",
+    y = "Residuals"
+    ) 
+```
+
+Compare your model to two others:
+
+```{r}
+fit_birthweight2 = lm(bwt ~ + blength + gaweeks, data = birthweight_data)
+
+fit_birthweight3 = lm(bwt ~ bhead + bhead * blength * babysex, data = birthweight_data) 
+```
+
+Make this comparison in terms of the cross-validated prediction error; use crossv_mc and functions in purrr as appropriate: 
 
 ```{r}
 
